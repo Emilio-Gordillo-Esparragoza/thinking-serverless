@@ -110,6 +110,7 @@ The following principles and patterns form the backbone of successful serverless
 The hexagonal (ports & adapters) architecture is a natural fit for serverless because it treats cloud services (SQS, API Gateway, S3) as external “adapters” that plug into your business logic.
 
 A typical **serverless hexagonal structure** looks like:
+```bash
 ├── src/
 │ ├── domain/
 │ │ ├── models/
@@ -123,7 +124,7 @@ A typical **serverless hexagonal structure** looks like:
 └── tests/
 ├── unit/ 
 └── integration/
-
+```
 **Benefits**:
 - The domain code is **framework‑free** and can be reused across Lambda, Step Functions, or even containerised runtimes.
 - Switching a database from DynamoDB to Cosmos DB only requires a new adapter – the domain logic remains untouched.
