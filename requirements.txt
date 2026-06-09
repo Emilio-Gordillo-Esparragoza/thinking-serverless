@@ -1,0 +1,5 @@
+boto3>=1.34,<2
+pytest>=8,<9
+ruff>=0.5,<1
+aws-sam-cli>=1.120,<2
+localstack>=3,<4

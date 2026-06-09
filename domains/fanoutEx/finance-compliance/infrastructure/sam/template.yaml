@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  finance-compliance – SQS queue, DLQ, and compliance-check Lambda for AML
+  screening.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  ComplianceQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub compliance-queue-${Environment}
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ComplianceDLQ.Arn
+        maxReceiveCount: 3
+
+  ComplianceDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub compliance-dlq-${Environment}
+
+  ComplianceQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref ComplianceQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt ComplianceQueue.Arn
+
+  ComplianceCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub compliance-check-${Environment}
+      CodeUri: ../../src/compliance_check/
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Events:
+        SQSQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ComplianceQueue.Arn
+            BatchSize: 10
+      Policies:
+        - Statement:
+            - Sid: SQSReceiveDelete
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt ComplianceQueue.Arn
+        - Statement:
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+
+Outputs:
+  ComplianceQueueArn:
+    Value: !GetAtt ComplianceQueue.Arn
+  ComplianceQueueUrl:
+    Value: !Ref ComplianceQueue

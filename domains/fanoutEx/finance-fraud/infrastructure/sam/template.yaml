@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  finance-fraud – SQS queue, DLQ, and fraud-detection Lambda for scoring
+  transactions.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  FraudQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub fraud-queue-${Environment}
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt FraudDLQ.Arn
+        maxReceiveCount: 3
+
+  FraudDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub fraud-dlq-${Environment}
+
+  FraudQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref FraudQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt FraudQueue.Arn
+
+  FraudDetectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fraud-detection-${Environment}
+      CodeUri: ../../src/fraud_detection/
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Events:
+        SQSQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FraudQueue.Arn
+            BatchSize: 10
+      Policies:
+        - Statement:
+            - Sid: SQSReceiveDelete
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt FraudQueue.Arn
+        - Statement:
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+
+Outputs:
+  FraudQueueArn:
+    Value: !GetAtt FraudQueue.Arn
+  FraudQueueUrl:
+    Value: !Ref FraudQueue

@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  finance-orchestration – Creates the EventBridge event bus, rules, and the
+  process-transaction Lambda that puts events onto the bus.
+
+Parameters:
+  ComplianceQueueArn:
+    Type: String
+    Description: ARN of the compliance SQS queue
+  FraudQueueArn:
+    Type: String
+    Description: ARN of the fraud detection SQS queue
+  LedgerQueueArn:
+    Type: String
+    Description: ARN of the ledger update SQS queue
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  FinanceEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: finance-events
+
+  RouteToComplianceRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: route-to-compliance
+      EventBusName: !Ref FinanceEventBus
+      EventPattern:
+        source:
+          - finance.orchestration
+        detail-type:
+          - TransactionProcessed
+      Targets:
+        - Arn: !Ref ComplianceQueueArn
+          Id: ComplianceQueue
+
+  RouteToFraudRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: route-to-fraud
+      EventBusName: !Ref FinanceEventBus
+      EventPattern:
+        source:
+          - finance.orchestration
+        detail-type:
+          - TransactionProcessed
+      Targets:
+        - Arn: !Ref FraudQueueArn
+          Id: FraudQueue
+
+  RouteToLedgerRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: route-to-ledger
+      EventBusName: !Ref FinanceEventBus
+      EventPattern:
+        source:
+          - finance.orchestration
+        detail-type:
+          - TransactionProcessed
+      Targets:
+        - Arn: !Ref LedgerQueueArn
+          Id: LedgerQueue
+
+  ProcessTransactionDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub process-transaction-dlq-${Environment}
+
+  ProcessTransactionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub process-transaction-${Environment}
+      CodeUri: ../../src/process_transaction/
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref FinanceEventBus
+      Policies:
+        - Statement:
+            - Sid: EventBridgePutEvents
+              Effect: Allow
+              Action: events:PutEvents
+              Resource: "*"
+        - Statement:
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt ProcessTransactionDLQ.Arn
+
+Outputs:
+  EventBusName:
+    Value: !Ref FinanceEventBus
+  EventBusArn:
+    Value: !GetAtt FinanceEventBus.Arn

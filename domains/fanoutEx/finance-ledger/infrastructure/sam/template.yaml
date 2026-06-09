@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  finance-ledger – SQS queue, DLQ, and ledger-update Lambda for recording
+  double-entry bookkeeping.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  LedgerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ledger-queue-${Environment}
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt LedgerDLQ.Arn
+        maxReceiveCount: 3
+
+  LedgerDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ledger-dlq-${Environment}
+
+  LedgerQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref LedgerQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt LedgerQueue.Arn
+
+  LedgerUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ledger-update-${Environment}
+      CodeUri: ../../src/ledger_update/
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Events:
+        SQSQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt LedgerQueue.Arn
+            BatchSize: 10
+      Policies:
+        - Statement:
+            - Sid: SQSReceiveDelete
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt LedgerQueue.Arn
+        - Statement:
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+
+Outputs:
+  LedgerQueueArn:
+    Value: !GetAtt LedgerQueue.Arn
+  LedgerQueueUrl:
+    Value: !Ref LedgerQueue

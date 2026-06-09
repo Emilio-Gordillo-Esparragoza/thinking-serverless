@@ -238,3 +238,22 @@ Think like a **hacker** during design. Most common vulnerabilities are exploited
   - Security pipeline: SAST (static analysis), DAST (dynamic), and dependency scanning (e.g., Snyk, Dependabot).
 
 > **Good habit**: always write a “Threat modeling” section in your design documentation. What would happen if someone sends 10,000 requests per second? What if a Lambda can read S3 objects from another tenant? Document the mitigations and keep them updated.
+---
+
+## 5. Domains — Financial Fan-Out Example
+
+This repository includes a **domain-based monorepo** under [`domains/`](./domains/)
+with two architecture examples:
+
+**[`domains/fanoutEx/`](./domains/fanoutEx/)** – EventBridge + SQS fan-out:
+- `finance-orchestration/` – entry point Lambda + EventBridge bus and rules.
+- `finance-compliance/` – AML screening consumer.
+- `finance-fraud/` – fraud scoring consumer.
+- `finance-ledger/` – double-entry ledger consumer.
+- `finance-monolith/` – synchronous Lambda + API Gateway (for comparison).
+
+**[`shared/`](./shared/)** – reusable IAM policies, event schemas, and Python utilities.
+
+See [`domains/fanoutEx/README.md`](./domains/fanoutEx/README.md) for full
+architecture diagrams, deployment instructions, and a comparison of synchronous
+vs asynchronous fan-out.

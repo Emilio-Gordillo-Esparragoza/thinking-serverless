@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [canary, main]
+  pull_request:
+    branches: [canary, main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  TERRAFORM_VERSION: "1.9"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install -r requirements.txt
+      - name: Run Ruff
+        continue-on-error: false
+        run: ruff check --output-format=github --target-version=py312
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install -r requirements.txt
+      - name: Run Lambda unit tests
+        run: |
+          pytest domains/fanoutEx/finance-orchestration/src/process_transaction/test_lambda.py -v
+          pytest domains/fanoutEx/finance-compliance/src/compliance_check/test_lambda.py -v
+          pytest domains/fanoutEx/finance-fraud/src/fraud_detection/test_lambda.py -v
+          pytest domains/fanoutEx/finance-ledger/src/ledger_update/test_lambda.py -v
+          pytest domains/fanoutEx/finance-monolith/src/new_order/test_lambda.py -v
+
+  terraform-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - name: Validate all Terraform modules
+        run: |
+          for dir in domains/fanoutEx/*/infrastructure/terraform/; do
+            echo "Validating $dir"
+            cd "$dir"
+            terraform init -backend=false
+            terraform validate
+            cd "$GITHUB_WORKSPACE"
+          done
+
+  sam-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SAM CLI
+        run: pip install aws-sam-cli
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install -r requirements.txt
+      - name: Validate all SAM templates
+        run: |
+          for file in domains/fanoutEx/*/infrastructure/sam/template.yaml; do
+            echo "Validating $file"
+            sam validate -t "$file"
+          done
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: sqs,events
+          AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install -r requirements.txt
+      - name: Wait for LocalStack
+        run: |
+          for i in $(seq 1 30); do
+            curl -s http://localhost:4566/_localstack/health | grep -q '"sqs":"available"' && break
+            sleep 2
+          done
+      - name: Run integration tests
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          ENDPOINT_URL: http://localhost:4566
+        run: pytest tests/integration/ -v
+
+  report-failure:
+    if: failure()
+    needs:
+      - lint
+      - unit-tests
+      - terraform-validate
+      - sam-validate
+      - integration
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const runAttempt = `${{ github.run_attempt }}`;
+            const title = `CI Failed: ${{ github.workflow }} (#${{ github.run_id }})`;
+            const body = [
+              `## CI Pipeline Failure`,
+              ``,
+              `| Detail | Value |`,
+              `|--------|-------|`,
+              `| Workflow | [${workflowUrl}](${workflowUrl}) |`,
+              `| Branch | \`${{ github.ref_name }}\` |`,
+              `| Commit | ${{ github.sha }} |`,
+              `| Trigger | ${{ github.event_name }} |`,
+              ``,
+              `### Failed Jobs`,
+              ``,
+              `Check the [workflow logs](${workflowUrl}) for details. `,
+              `The logs contain the full output of every step, including `,
+              `lint errors, test failures, and infrastructure validation issues.`,
+            ].join('\n');
+
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['ci', 'automated'],
+            });

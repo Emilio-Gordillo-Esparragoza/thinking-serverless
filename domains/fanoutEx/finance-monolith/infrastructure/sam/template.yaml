@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  finance-monolith – A single synchronous Lambda behind API Gateway that
+  handles validation, compliance, fraud checks, and ledger updates in one
+  invocation. Included for comparison with the EventBridge + SQS fan-out
+  pattern.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  NewOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub new-order-${Environment}
+      CodeUri: ../../src/new_order/
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Events:
+        OrderApi:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: POST
+      Policies:
+        - Statement:
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint for creating orders
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/orders"
