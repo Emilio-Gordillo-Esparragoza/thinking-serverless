@@ -120,6 +120,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except RuntimeError as re:
         logger.error("Processing error", exc_info=True)
         return _build_response(500, {"error": str(re)})
-    except Exception as e:
+    except Exception as _:
         logger.critical("Unexpected error", exc_info=True)
         return _build_response(500, {"error": "Internal server error"})

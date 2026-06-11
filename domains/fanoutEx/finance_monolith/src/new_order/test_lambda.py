@@ -1,7 +1,6 @@
 import importlib.util
 import json
 import os
-import sys
 import unittest
 
 _src_path = os.path.join(os.path.dirname(__file__), "lambda_function.py")
@@ -71,9 +70,10 @@ class TestUpdateLedger(unittest.TestCase):
         result = _update_ledger("tx-1", "a1", 500, "deposit")
         self.assertIn("debit", result)
         self.assertIn("credit", result)
-        self.assertEqual(result["debit"]["direction"], "debit")
-        self.assertEqual(result["credit"]["direction"], "credit")
-
+        self.assertIn("entryId", result["debit"])
+        self.assertIn("entryId", result["credit"])
+        self.assertEqual(result["debit"]["amount"], 500)
+        self.assertEqual(result["credit"]["amount"], 500)
 
 class TestLambdaHandler(unittest.TestCase):
     def test_successful_transaction(self):
@@ -107,8 +107,10 @@ class TestLambdaHandler(unittest.TestCase):
         self.assertEqual(resp["statusCode"], 400)
 
     def test_missing_body(self):
-        with self.assertRaises(KeyError):
-            lambda_handler({}, None)
+        resp = lambda_handler({}, None)
+        self.assertEqual(resp["statusCode"], 400)
+        body = json.loads(resp["body"])
+        self.assertIn("error", body)
 
 
 if __name__ == "__main__":

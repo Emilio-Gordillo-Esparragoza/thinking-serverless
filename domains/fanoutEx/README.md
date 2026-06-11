@@ -108,7 +108,7 @@ domain's Lambda. Failures land in a Dead‑Letter Queue for later inspection.
 
 ### Fan‑out (EventBridge + SQS)
 
-The fan‑out domains have a **cross‑domain dependency**: `finance-orchestration`
+The fan‑out domains have a **cross‑domain dependency**: `finance_orchestration`
 needs the SQS queue ARNs from the other three domains to wire up EventBridge
 rules.
 
@@ -118,19 +118,19 @@ rules.
 
 ```bash
 # 1. Compliance
-cd domains/fanoutEx/finance-compliance/infrastructure/terraform
+cd domains/fanoutEx/finance_compliance/infrastructure/terraform
 terraform init
 terraform apply -var="environment=dev"
 # Note the compliance_queue_arn output
 
 # 2. Fraud
-cd ../../finance-fraud/infrastructure/terraform
+cd ../../finance_fraud/infrastructure/terraform
 terraform init
 terraform apply -var="environment=dev"
 # Note the fraud_queue_arn output
 
 # 3. Ledger
-cd ../../finance-ledger/infrastructure/terraform
+cd ../../finance_ledger/infrastructure/terraform
 terraform init
 terraform apply -var="environment=dev"
 # Note the ledger_queue_arn output
@@ -139,7 +139,7 @@ terraform apply -var="environment=dev"
 **Stage 2** – Deploy the orchestration domain, passing the queue ARNs:
 
 ```bash
-cd ../../finance-orchestration/infrastructure/terraform
+cd ../../finance_orchestration/infrastructure/terraform
 terraform init
 terraform apply \
   -var="environment=dev" \
@@ -152,17 +152,17 @@ terraform apply \
 
 ```bash
 # Deploy consumer domains first
-cd domains/fanoutEx/finance-compliance/infrastructure/sam
+cd domains/fanoutEx/finance_compliance/infrastructure/sam
 sam deploy --guided  # note the ComplianceQueueArn output
 
-cd ../../finance-fraud/infrastructure/sam
+cd ../../finance_fraud/infrastructure/sam
 sam deploy --guided  # note the FraudQueueArn output
 
-cd ../../finance-ledger/infrastructure/sam
+cd ../../finance_ledger/infrastructure/sam
 sam deploy --guided  # note the LedgerQueueArn output
 
 # Deploy orchestration, passing queue ARNs as parameters
-cd ../../finance-orchestration/infrastructure/sam
+cd ../../finance_orchestration/infrastructure/sam
 sam deploy \
   --parameter-overrides \
     ComplianceQueueArn=arn:aws:sqs:... \
@@ -178,12 +178,12 @@ dependencies. Deploy it in a single step:
 
 ```bash
 # Terraform
-cd domains/fanoutEx/finance-monolith/infrastructure/terraform
+cd domains/fanoutEx/finance_monolith/infrastructure/terraform
 terraform init
 terraform apply -var="environment=dev"
 
 # SAM
-cd ../../finance-monolith/infrastructure/sam
+cd ../../finance_monolith/infrastructure/sam
 sam deploy --guided
 ```
 
@@ -196,7 +196,7 @@ sam deploy --guided
 ```
 Client ──► API Gateway ──► newOrder Lambda
                               │
-                              ├── capture data ───────────────────┐
+                              ├── capture data ──────────────────┐
                               ├── Compliance API ── wait ────────┤
                               ├── Fraud API ─────── wait ────────┤── response
                               └── Ledger API ────── wait ────────┘
@@ -209,7 +209,7 @@ Client ──► API Gateway ──► newOrder Lambda
   though Compliance already passed.
 - **Hard to scale** – every consumer must keep up with the same throughput,
   or the slowest one becomes the bottleneck.
-- **Tight coupling** – adding a fourth domain (e.g., `finance-reporting`)
+- **Tight coupling** – adding a fourth domain (e.g., `finance_reporting`)
   requires changing the orchestrator code.
 
 ### Asynchronous fan‑out (EventBridge + SQS)
@@ -249,15 +249,15 @@ built-in `unittest`:
 
 ```bash
 # From the repository root
-python -m pytest domains/fanoutEx/finance-orchestration/src/process_transaction/test_lambda.py
+python -m pytest domains/fanoutEx/finance_orchestration/src/process_transaction/test_lambda.py
 
-python -m pytest domains/fanoutEx/finance-compliance/src/compliance_check/test_lambda.py
+python -m pytest domains/fanoutEx/finance_compliance/src/compliance_check/test_lambda.py
 
-python -m pytest domains/fanoutEx/finance-fraud/src/fraud_detection/test_lambda.py
+python -m pytest domains/fanoutEx/finance_fraud/src/fraud_detection/test_lambda.py
 
-python -m pytest domains/fanoutEx/finance-ledger/src/ledger_update/test_lambda.py
+python -m pytest domains/fanoutEx/finance_ledger/src/ledger_update/test_lambda.py
 
-python -m pytest domains/fanoutEx/finance-monolith/src/new_order/test_lambda.py
+python -m pytest domains/fanoutEx/finance_monolith/src/new_order/test_lambda.py
 ```
 
 For integration testing, use [LocalStack](https://www.localstack.cloud/) or
