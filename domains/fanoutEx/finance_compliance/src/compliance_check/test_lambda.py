@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".."))
-from domains.finance_compliance.src.compliance_check.lambda_function import (
+from domains.fanoutEx.finance_compliance.src.compliance_check.lambda_function import (
     _parse_sqs_event,
     _run_aml_check,
     lambda_handler,

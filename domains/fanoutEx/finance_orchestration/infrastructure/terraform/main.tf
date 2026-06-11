@@ -19,13 +19,13 @@ variable "environment" {
   default     = "dev"
 }
 
-resource "aws_eventschemas_registry" "main" {
+resource "aws_schemas_registry" "main" {
   name = "finance-events-registry"
 }
 
-resource "aws_eventschemas_schema" "transaction_event" {
+resource "aws_schemas_schema" "transaction_event" {
   name          = "TransactionEvent"
-  registry_name = aws_eventschemas_registry.main.name
+  registry_name = aws_schemas_registry.main.name
   type          = "OpenApi3"
   content = jsonencode({
     openapi = "3.0.0"

@@ -152,6 +152,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     except ValueError as ve:
         return _respond(400, {"error": str(ve)})
-    except Exception as e:
+    except Exception as _:
         logger.critical("Unexpected error", exc_info=True)
         return _respond(500, {"error": "Internal server error"})
