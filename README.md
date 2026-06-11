@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-  <em>A way to learn Serverless through foundational concepts and hands-on projects you can replicate. For more practical information, look at the <a href="./docs">docs/</a> and <a href="./examples">examples/</a> directories where these principles are applied.</em>
+  <em>A way to learn Serverless through foundational concepts and hands-on projects you can replicate. For more practical information, look at the <a href="./docs">docs/</a> and <a href="./domains">domains/</a> directories where these principles are applied.</em>
 </p>
 
 ## 📑 Index
@@ -243,17 +243,20 @@ Think like a **hacker** during design. Most common vulnerabilities are exploited
 ## 5. Domains — Financial Fan-Out Example
 
 This repository includes a **domain-based monorepo** under [`domains/`](./domains/)
-with two architecture examples:
+that implements the **EventBridge + SQS fan-out pattern** for financial
+transactions.
 
-**[`domains/fanoutEx/`](./domains/fanoutEx/)** – EventBridge + SQS fan-out:
-- `finance-orchestration/` – entry point Lambda + EventBridge bus and rules.
-- `finance-compliance/` – AML screening consumer.
-- `finance-fraud/` – fraud scoring consumer.
-- `finance-ledger/` – double-entry ledger consumer.
-- `finance-monolith/` – synchronous Lambda + API Gateway (for comparison).
+- [`domains/finance-orchestration/`](./domains/finance-orchestration/) – entry
+  point Lambda + EventBridge bus and rules.
+- [`domains/finance-compliance/`](./domains/finance-compliance/) – AML
+  screening consumer.
+- [`domains/finance-fraud/`](./domains/finance-fraud/) – fraud scoring
+  consumer.
+- [`domains/finance-ledger/`](./domains/finance-ledger/) – double-entry
+  ledger consumer.
+- [`shared/`](./shared/) – reusable IAM policies, event schemas, and Python
+  utilities.
 
-**[`shared/`](./shared/)** – reusable IAM policies, event schemas, and Python utilities.
-
-See [`domains/fanoutEx/README.md`](./domains/fanoutEx/README.md) for full
-architecture diagrams, deployment instructions, and a comparison of synchronous
-vs asynchronous fan-out.
+See [`domains/README.md`](./domains/README.md) for full architecture diagrams,
+deployment instructions, and a comparison of synchronous vs asynchronous
+fan-out.

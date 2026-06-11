@@ -33,11 +33,11 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Run Lambda unit tests
         run: |
-          pytest domains/fanoutEx/finance-orchestration/src/process_transaction/test_lambda.py -v
-          pytest domains/fanoutEx/finance-compliance/src/compliance_check/test_lambda.py -v
-          pytest domains/fanoutEx/finance-fraud/src/fraud_detection/test_lambda.py -v
-          pytest domains/fanoutEx/finance-ledger/src/ledger_update/test_lambda.py -v
-          pytest domains/fanoutEx/finance-monolith/src/new_order/test_lambda.py -v
+          pytest domains/fanoutEx/finance_orchestration/src/process_transaction/test_lambda.py -v
+          pytest domains/fanoutEx/finance_compliance/src/compliance_check/test_lambda.py -v
+          pytest domains/fanoutEx/finance_fraud/src/fraud_detection/test_lambda.py -v
+          pytest domains/fanoutEx/finance_ledger/src/ledger_update/test_lambda.py -v
+          pytest domains/fanoutEx/finance_monolith/src/new_order/test_lambda.py -v
 
   terraform-validate:
     runs-on: ubuntu-latest
@@ -58,6 +58,9 @@ jobs:
 
   sam-validate:
     runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+      SAM_CLI_TELEMETRY: 0
     steps:
       - name: Install SAM CLI
         run: pip install aws-sam-cli
@@ -81,6 +84,7 @@ jobs:
         ports:
           - 4566:4566
         env:
+          LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
           SERVICES: sqs,events
           AWS_DEFAULT_REGION: us-east-1
     steps:
@@ -104,13 +108,8 @@ jobs:
         run: pytest tests/integration/ -v
 
   report-failure:
-    if: failure()
-    needs:
-      - lint
-      - unit-tests
-      - terraform-validate
-      - sam-validate
-      - integration
+    if: failure() && github.ref == 'refs/heads/main'
+    needs: [lint, unit-tests, terraform-validate, sam-validate, integration]
     runs-on: ubuntu-latest
     permissions:
       issues: write

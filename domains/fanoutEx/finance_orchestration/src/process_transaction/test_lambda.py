@@ -4,8 +4,10 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
+os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".."))
-from domains.finance_orchestration.src.process_transaction.lambda_function import (
+from domains.fanoutEx.finance_orchestration.src.process_transaction.lambda_function import (
     _build_response,
     _validate_transaction,
     lambda_handler,
@@ -53,7 +55,7 @@ class TestBuildResponse(unittest.TestCase):
 
 class TestLambdaHandler(unittest.TestCase):
     @patch(
-        "domains.finance_orchestration.src.process_transaction.lambda_function.eventbridge"
+        "domains.fanoutEx.finance_orchestration.src.process_transaction.lambda_function.eventbridge"
     )
     def test_successful_processing(self, mock_eb: MagicMock):
         mock_eb.put_events.return_value = {
@@ -76,7 +78,7 @@ class TestLambdaHandler(unittest.TestCase):
         self.assertIn("transactionId", body)
 
     @patch(
-        "domains.finance_orchestration.src.process_transaction.lambda_function.eventbridge"
+        "domains.fanoutEx.finance_orchestration.src.process_transaction.lambda_function.eventbridge"
     )
     def test_validation_error(self, mock_eb: MagicMock):
         event = {"body": json.dumps({"amount": -5})}
@@ -84,7 +86,7 @@ class TestLambdaHandler(unittest.TestCase):
         self.assertEqual(resp["statusCode"], 400)
 
     @patch(
-        "domains.finance_orchestration.src.process_transaction.lambda_function.eventbridge"
+        "domains.fanoutEx.finance_orchestration.src.process_transaction.lambda_function.eventbridge"
     )
     def test_eventbridge_failure(self, mock_eb: MagicMock):
         mock_eb.put_events.return_value = {
@@ -102,8 +104,10 @@ class TestLambdaHandler(unittest.TestCase):
         self.assertEqual(resp["statusCode"], 500)
 
     def test_missing_body(self):
-        with self.assertRaises(KeyError):
-            lambda_handler({}, None)
+        resp = lambda_handler({}, None)
+        self.assertEqual(resp["statusCode"], 400)
+        body = json.loads(resp["body"])
+        self.assertIn("error", body)
 
 
 if __name__ == "__main__":
