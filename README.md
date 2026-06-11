@@ -110,6 +110,7 @@ The following principles and patterns form the backbone of successful serverless
 The hexagonal (ports & adapters) architecture is a natural fit for serverless because it treats cloud services (SQS, API Gateway, S3) as external “adapters” that plug into your business logic.
 
 A typical **serverless hexagonal structure** looks like:
+```bash
 ├── src/
 │ ├── domain/
 │ │ ├── models/
@@ -123,7 +124,7 @@ A typical **serverless hexagonal structure** looks like:
 └── tests/
 ├── unit/ 
 └── integration/
-
+```
 **Benefits**:
 - The domain code is **framework‑free** and can be reused across Lambda, Step Functions, or even containerised runtimes.
 - Switching a database from DynamoDB to Cosmos DB only requires a new adapter – the domain logic remains untouched.
@@ -238,25 +239,3 @@ Think like a **hacker** during design. Most common vulnerabilities are exploited
   - Security pipeline: SAST (static analysis), DAST (dynamic), and dependency scanning (e.g., Snyk, Dependabot).
 
 > **Good habit**: always write a “Threat modeling” section in your design documentation. What would happen if someone sends 10,000 requests per second? What if a Lambda can read S3 objects from another tenant? Document the mitigations and keep them updated.
----
-
-## 5. Domains — Financial Fan-Out Example
-
-This repository includes a **domain-based monorepo** under [`domains/`](./domains/)
-that implements the **EventBridge + SQS fan-out pattern** for financial
-transactions.
-
-- [`domains/finance-orchestration/`](./domains/finance-orchestration/) – entry
-  point Lambda + EventBridge bus and rules.
-- [`domains/finance-compliance/`](./domains/finance-compliance/) – AML
-  screening consumer.
-- [`domains/finance-fraud/`](./domains/finance-fraud/) – fraud scoring
-  consumer.
-- [`domains/finance-ledger/`](./domains/finance-ledger/) – double-entry
-  ledger consumer.
-- [`shared/`](./shared/) – reusable IAM policies, event schemas, and Python
-  utilities.
-
-See [`domains/README.md`](./domains/README.md) for full architecture diagrams,
-deployment instructions, and a comparison of synchronous vs asynchronous
-fan-out.
