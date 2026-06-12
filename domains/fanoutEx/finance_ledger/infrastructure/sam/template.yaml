@@ -66,7 +66,7 @@ Resources:
                 - logs:CreateLogGroup
                 - logs:CreateLogStream
                 - logs:PutLogEvents
-              Resource: "*"
+              Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/ledger-update-${Environment}:*"
 
 Outputs:
   LedgerQueueArn:

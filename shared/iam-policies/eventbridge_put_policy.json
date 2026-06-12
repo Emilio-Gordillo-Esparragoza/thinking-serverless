@@ -5,7 +5,7 @@
       "Sid": "EventBridgePutEvents",
       "Effect": "Allow",
       "Action": "events:PutEvents",
-      "Resource": "*"
+      "Resource": "arn:aws:events:*:*:event-bus/finance-events"
     }
   ]
 }

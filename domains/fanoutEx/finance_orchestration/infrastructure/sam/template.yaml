@@ -86,7 +86,7 @@ Resources:
             - Sid: EventBridgePutEvents
               Effect: Allow
               Action: events:PutEvents
-              Resource: "*"
+              Resource: !GetAtt FinanceEventBus.Arn
         - Statement:
             - Sid: CloudWatchLogs
               Effect: Allow
@@ -94,7 +94,7 @@ Resources:
                 - logs:CreateLogGroup
                 - logs:CreateLogStream
                 - logs:PutLogEvents
-              Resource: "*"
+              Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/process-transaction-${Environment}:*"
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt ProcessTransactionDLQ.Arn

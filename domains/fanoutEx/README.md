@@ -5,26 +5,7 @@
 A financial company processed every transaction through a single monolithic
 Lambda triggered by API Gateway:
 
-```
-Client
-  │
-  ▼
-API Gateway
-  │
-  ▼
-newOrder Lambda (catch‑all)
-  │
-  ├── Capture order data
-  │
-  ├── If amount > $10,000 → call Compliance API (wait)
-  │     └── if flagged → reject
-  │
-  ├── If transfer → call Fraud API (wait)
-  │     └── if suspicious → hold
-  │
-  └── Update ledger (wait)
-        └── if ledger down → entire transaction fails
-```
+![Monolith Architecture](../../diagrams/output/monolith_architecture.png)
 
 **What went wrong:**
 
@@ -44,6 +25,23 @@ newOrder Lambda (catch‑all)
 The company needed a way to decouple these concerns so that each one could
 fail, scale, and deploy independently — without the client waiting for all of
 them.
+
+## Scope of the `fanoutEx` Example
+
+This `fanoutEx` example demonstrates the **basic fan‑out architecture** using Amazon EventBridge, AWS Lambda, and standard SQS queues with a Dead‑Letter Queue (DLQ). It focuses on solving the core problems described above—latency stacking, cascade failures, scaling bottlenecks, and missing audit trails—by asynchronously distributing transaction events to independent financial domains.
+
+**What `fanoutEx` includes:**
+- Event publication from a single entry point (`process_transaction`) to EventBridge.
+- EventBridge rules that fan out to three SQS queues (Compliance, Fraud, Ledger).
+- Independent Lambda consumers for each queue, with basic error handling.
+- A single DLQ for failed messages (dead‑letter queue) to prevent data loss.
+
+**What `fanoutEx` deliberately omits (to be covered in separate examples):**
+- Custom retry policies (exponential backoff, redrive strategies).
+- FIFO queues (strict message ordering and deduplication).
+- Per‑domain DLQs or advanced dead‑letter configurations.
+- Idempotency patterns in consumer Lambdas.
+- Distributed tracing (AWS X‑Ray) or detailed monitoring dashboards.
 
 Under the **domain‑based monorepo**, each business capability lives in its own
 directory with its own source code and infrastructure:
@@ -72,30 +70,14 @@ domains/
         └── sam/
 ```
 
+**Why separate examples?**  
+All future advanced topics—such as retry policies, FIFO, idempotency, encryption or exactly‑once semantics—will reuse the **same domain structure** (`finance_compliance`, `finance_fraud`, `finance_ledger`, `finance_orchestration`). This allows you to directly compare implementations without changing the monorepo layout.
+
 ---
 
 ## Architecture: EventBridge + SQS Financial Fan‑Out
 
-```
-  Client
-    │
-    ▼
-API Gateway ──► process_transaction (finance-orchestration)
-                    │
-                    ▼ put_event
-            ┌─ EventBridge (finance-events) ─┐
-            │          │                     │
-            ▼          ▼                     ▼
-    Compliance SQS ─ Fraud SQS ──────── Ledger SQS
-         │              │                    │
-         ▼              ▼                    ▼
-  compliance_check  fraud_detection    ledger_update
-  (finance-         (finance-fraud)    (finance-ledger)
-   compliance)
-         │              │                    │
-         ▼              ▼                    ▼
-        DLQ            DLQ                  DLQ
-```
+![Fanout Architecture](../../diagrams/output/fanout_architecture.png)
 
 Every transaction flows through a single entry point
 (`process_transaction`), which validates the payload and publishes an event.
@@ -193,14 +175,7 @@ sam deploy --guided
 
 ### Synchronous (the old way — bad for finance)
 
-```
-Client ──► API Gateway ──► newOrder Lambda
-                              │
-                              ├── capture data ──────────────────┐
-                              ├── Compliance API ── wait ────────┤
-                              ├── Fraud API ─────── wait ────────┤── response
-                              └── Ledger API ────── wait ────────┘
-```
+![Monolith Architecture](../../diagrams/output/monolith_architecture.png)
 
 **Problems:**
 - **Total latency** = sum of all three services. The client waits until every
@@ -214,11 +189,7 @@ Client ──► API Gateway ──► newOrder Lambda
 
 ### Asynchronous fan‑out (EventBridge + SQS)
 
-```
-Client ──► API ──► EventBridge ──► Compliance SQS ──► compliance_check
-                ├──► Fraud SQS ───────────► fraud_detection
-                └──► Ledger SQS ──────────► ledger_update
-```
+![Fanout Architecture](../../diagrams/output/fanout_architecture.png)
 
 **Benefits:**
 - **Client gets an instant 202** – the transaction is accepted and processed
