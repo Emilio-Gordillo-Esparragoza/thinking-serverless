@@ -214,8 +214,9 @@ Adopt a **“documentation as code”** mindset: everything lives in the reposit
 ---
 
 ## 4. Security
+>"Security is a process, not a product" - By Bruce Schneier
 
-Think like a **hacker** during design. Most common vulnerabilities are exploited because someone *didn't imagine* that path.
+Think like a **hacker** during design is the best way to secure your apps. Most common vulnerabilities are exploited because someone *didn't imagine* that path.
 
 ### Fundamental principles
 
@@ -226,6 +227,53 @@ Think like a **hacker** during design. Most common vulnerabilities are exploited
   - Event injection
   - Broken authentication
   - Exposure of secrets (never in code, use Secrets Manager or Parameter Store)
+
+### STRIDE: A framework for security
+
+STRIDE stands for:
+- **Spoofing**: Pretending to be something or someone other than who you are
+- **Tampering**: Changing data somewhere (disk, memory, network, etc)
+- **Repudiation**: Claim to be innocent
+- **Information disclosure**: Acquire data that was not intended for you
+- **Denial of service**: Excesive use of finite resources.
+- **Elevation of privilege**: Perfoming actions (usually accesing to root user or admin roles) that you should not be allowed to perform.
+
+A common way to apply this framework is using **STRIDE-per-element** where STRIDE threat categories are applied to elements in your application such as:
+
+| Element                     | S     | T     | R     | I     | D     | E     |
+|-----------------------------|-------|-------|-------|-------|-------|-------|
+| Human actor / external entity | ✅   |       | ✅   |       |       |       |
+| Process (Lambda, container)   |       | ✅   | ✅   | ✅   | ✅   | ✅   |
+| Data store (DB, S3, SQS)      |       | ✅   |       | ✅   | ✅   |       |
+| Data flow (API, event bus)    |       | ✅   |       | ✅   | ✅   |       |
+
+### Beyond STRIDE and Fundamental Principles: SLSA
+
+SLSA (Supply-chain Levels for Software Artifacts, pronounced *salsa*) is a
+security framework from Google that protects the software supply chain — the
+pipeline from source code to deployed artifact.
+
+**Why it matters for serverless:** Your Lambda functions, container images, and
+IaC templates are built from dependencies (pip packages, base images, GitHub
+Actions). SLSA gives you a maturity model to ensure what you deploy is exactly
+what was reviewed and no one tampered with it along the way.
+
+**SLSA levels (1–4):**
+
+| Level | Requirement | Serverless example |
+|-------|-------------|--------------------|
+| **1** | Build process is scripted and documented | CI pipeline with `pip install -r requirements.txt` |
+| **2** | Build runs on a hosted platform with provenance | GitHub Actions generates a signed provenance attestation |
+| **3** | Hardened build platform + prevents tampering | Hermetic builds, no network access during build, two‑person review for IaC PRs |
+| **4** | Build is fully hermetic and dependencies are verified | Pin all dependency hashes, sign container images with cosign, enforce `verify` on Lambda layer deployment |
+
+**Quick wins for this repo:**
+- Use `pip freeze > requirements.txt` with exact versions (not ranges).
+- Enable [Dependabot](https://docs.github.com/en/code-security/dependabot) or
+  [Renovate](https://docs.renovatebot.com/) for automated dependency updates.
+- Sign your commits with a GPG key (`git commit -S`).
+- Add a `verification` step to CI that checks checksums of third‑party
+  dependencies before deployment.
 
 ### Protecting the API and data
 
