@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-  <em>A way to learn Serverless through foundational concepts and hands-on projects you can replicate. For more practical information, look at the <a href="./docs">docs/</a> and <a href="./domains">domains/</a> directories where these principles are applied.</em>
+  <em>A way to learn Serverless through foundational concepts and hands-on projects you can replicate, "Serverless Development on AWS" by Brisals & Hedger is the main reference for this repo. For more practical information, look at the <a href="./docs">docs/</a> and <a href="./domains">domains/</a> directories where these principles are applied.</em>
 </p>
 
 ## 📑 Index
@@ -17,7 +17,9 @@
    - [Monolith vs Microservices in Serverless](#monolith-vs-microservices-in-serverless)
    - [MACH & API‑first design](#mach--api‑first-design)
    - [Documentation that saves projects (and careers)](#documentation-that-saves-projects-and-careers)
-4. [Security](#4-security)
+4. [System Design Basics](#4-system-design-basics)
+5. [Security](#5-security)
+6. [Domains — Financial Fan-Out Example](#6-domains--financial-fan-out-example)
 
 ---
 
@@ -213,67 +215,132 @@ Adopt a **“documentation as code”** mindset: everything lives in the reposit
 
 ---
 
-## 4. Security
->"Security is a process, not a product" - By Bruce Schneier
+## 4. System Design Basics
 
-Think like a **hacker** during design is the best way to secure your apps. Most common vulnerabilities are exploited because someone *didn't imagine* that path.
+System design is about choosing the right trade-offs for reliability, latency, scalability, and cost. In serverless, the same principles still apply, but the implementation usually shifts toward managed services, event-driven flow, and explicit boundaries between compute, storage, and data access.
+
+### Core ideas to keep in mind
+
+- **Scalability**: design for horizontal growth rather than relying on a single large instance.
+- **Reliability**: avoid single points of failure and prefer services with built-in redundancy.
+- **Latency**: move data closer to the user and reduce unnecessary round trips.
+- **Cost efficiency**: pay for work actually done, but avoid expensive patterns that create waste.
+- **Operational simplicity**: let managed services handle patching, scaling, and backups where possible.
+
+### Databases: the basics
+
+A classic database design question is whether to choose a relational or a NoSQL model. In practice, the right answer depends on access patterns, consistency requirements, and team experience.
+
+| Pattern / concept | What it means | Serverless-friendly approach |
+|---|---|---|
+| **Primary / replica** | One writer handles updates, replicas serve reads | Use managed read replicas or event-driven projections |
+| **Master / slave** | A primary node writes while replicas offload read traffic | Often replaced by managed database replicas or CQRS-style patterns |
+| **SQL database** | Strong consistency and joins for structured data | Use RDS, Aurora, or Aurora Serverless for transactional workloads |
+| **NoSQL database** | Flexible schemas and high scale for key/value or document access | Use DynamoDB for high-throughput, low-ops workloads |
+
+> In serverless, database design often matters more than the database brand. The biggest win is choosing a model that matches the way your application actually reads and writes data.
+
+### Load balancers and entry points
+
+A load balancer is not only for traditional VMs. In serverless architectures, your “front door” often looks like one of these:
+
+- **API Gateway** — ideal for HTTP APIs, request validation, throttling, and auth.
+- **Application Load Balancer (ALB)** — useful when you run containers or need advanced routing.
+- **Network Load Balancer (NLB)** — better for TCP/UDP-style workloads or lower-level traffic patterns.
+
+For serverless, the important idea is that the entry point should handle routing, auth, and protection before traffic reaches your functions.
+
+### Database replication and availability
+
+Replication helps improve resilience and read performance.
+
+- **Multi-AZ** deployment protects against region or availability-zone failures.
+- **Read replicas** reduce load on the primary database for reporting or read-heavy flows.
+- **Eventual consistency** is normal in many serverless designs, especially when using event-driven systems.
+- **Backups and restore plans** are still required, even when the platform is managed.
+
+### Cache tiers
+
+Caching is one of the best ways to improve performance without adding much complexity.
+
+- **Edge cache**: CloudFront or CDN layers reduce latency for geographically distributed users.
+- **Application cache**: Redis or ElastiCache stores hot data for quick access.
+- **Database cache**: DynamoDB Accelerator (DAX) or similar patterns can help reduce repeated read pressure.
+- **TTL policies**: set short expiration times for data that changes often.
+
+### Rate limits and protection
+
+A good system design basics section should include limits so that a burst of traffic does not break everything.
+
+- **API Gateway quotas** can limit requests per second or per minute.
+- **WAF** protects against abusive or malicious traffic.
+- **Concurrency controls** on Lambda help prevent runaway costs and resource exhaustion.
+- **Queues** (SQS, EventBridge, Step Functions) help absorb spikes and apply backpressure.
+
+### Serverless design takeaway
+
+The serverless version of good system design is usually:
+
+1. Put a managed entry point in front of your services.
+2. Keep business logic stateless and event-driven.
+3. Use managed data stores that match your access pattern.
+4. Add caching and rate limiting to protect performance and cost.
+5. Treat failures as normal and design around retries, queues, and observability.
+
+---
+
+## 5. Security
+
+> "Security is a process, not a product" — Bruce Schneier
+
+Thinking like a **hacker** during design is one of the best ways to secure your applications. Most common vulnerabilities are exploited because someone did not imagine that path.
 
 ### Fundamental principles
 
-- **Zero Trust** – trust no one, neither inside nor outside the network.
-- **Least Privilege** – each role, user, or function has exactly the minimum permissions required.
-- **Security Groups & Policies** – use security groups (instance‑level firewall) and restrictive IAM policies.
-- **OWASP Top 10 for Serverless** – pay special attention to:
+- **Zero Trust** — trust no one, neither inside nor outside the network.
+- **Least Privilege** — each role, user, or function has exactly the minimum permissions required.
+- **Security Groups & Policies** — use security groups (instance-level firewalls) and restrictive IAM policies.
+- **OWASP Top 10 for Serverless** — pay special attention to:
   - Event injection
   - Broken authentication
-  - Exposure of secrets (never in code, use Secrets Manager or Parameter Store)
+  - Exposure of secrets (never store them in code; use Secrets Manager or Parameter Store)
 
 ### STRIDE: A framework for security
 
 STRIDE stands for:
-- **Spoofing**: Pretending to be something or someone other than who you are
-- **Tampering**: Changing data somewhere (disk, memory, network, etc)
-- **Repudiation**: Claim to be innocent
-- **Information disclosure**: Acquire data that was not intended for you
-- **Denial of service**: Excesive use of finite resources.
-- **Elevation of privilege**: Perfoming actions (usually accesing to root user or admin roles) that you should not be allowed to perform.
 
-A common way to apply this framework is using **STRIDE-per-element** where STRIDE threat categories are applied to elements in your application such as:
+- **Spoofing** — pretending to be someone or something you are not.
+- **Tampering** — changing data in storage, memory, or on the network.
+- **Repudiation** — denying or disputing that an action happened.
+- **Information disclosure** — exposing data to someone who should not see it.
+- **Denial of service** — exhausting finite resources so that the service becomes unavailable.
+- **Elevation of privilege** — performing actions that should not be allowed, such as gaining admin or root access.
 
-| Element                     | S     | T     | R     | I     | D     | E     |
-|-----------------------------|-------|-------|-------|-------|-------|-------|
-| Human actor / external entity | ✅   |       | ✅   |       |       |       |
-| Process (Lambda, container)   |       | ✅   | ✅   | ✅   | ✅   | ✅   |
-| Data store (DB, S3, SQS)      |       | ✅   |       | ✅   | ✅   |       |
-| Data flow (API, event bus)    |       | ✅   |       | ✅   | ✅   |       |
+A common way to apply this framework is **STRIDE-per-element**, where the threat categories are mapped to the elements in your application.
 
-### Beyond STRIDE and Fundamental Principles: SLSA
+| Element | S | T | R | I | D | E |
+|---|---|---|---|---|---|---|
+| Human actor / external entity | ✅ |  | ✅ |  |  |  |
+| Process | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Data store |  | ✅ | ✅ | ✅ | ✅ |  |
+| Data flow |  | ✅ |  | ✅ | ✅ |  |
 
-SLSA (Supply-chain Levels for Software Artifacts, pronounced *salsa*) is a
-security framework from Google that protects the software supply chain — the
-pipeline from source code to deployed artifact.
+> **How this applies to our fan-out architecture:** The EventBridge bus is the central nervous system of the system. A single tampered event can poison compliance, fraud, and ledger flows. IAM roles should be scoped per domain (for example, orchestration writes while consumers only read). SQS DLQs help contain poison-pill messages, and CloudTrail plus EventBridge archives improve non-repudiation.
 
-**Why it matters for serverless:** Your Lambda functions, container images, and
-IaC templates are built from dependencies (pip packages, base images, GitHub
-Actions). SLSA gives you a maturity model to ensure what you deploy is exactly
-what was reviewed and no one tampered with it along the way.
+### Beyond STRIDE: SLSA (SALSA)
+
+SLSA (Supply-chain Levels for Software Artifacts, pronounced *salsa*) is a security framework from Google that helps protect the software supply chain — the path from source code to deployed artifact.
+
+**Why it matters for serverless:** Your Lambda functions, container images, and IaC templates are built from dependencies such as pip packages, base images, and GitHub Actions workflows. SLSA provides a maturity model to help ensure that what you deploy is exactly what was reviewed and that no one tampered with it along the way.
 
 **SLSA levels (1–4):**
 
 | Level | Requirement | Serverless example |
-|-------|-------------|--------------------|
+|---|---|---|
 | **1** | Build process is scripted and documented | CI pipeline with `pip install -r requirements.txt` |
 | **2** | Build runs on a hosted platform with provenance | GitHub Actions generates a signed provenance attestation |
-| **3** | Hardened build platform + prevents tampering | Hermetic builds, no network access during build, two‑person review for IaC PRs |
-| **4** | Build is fully hermetic and dependencies are verified | Pin all dependency hashes, sign container images with cosign, enforce `verify` on Lambda layer deployment |
-
-**Quick wins for this repo:**
-- Use `pip freeze > requirements.txt` with exact versions (not ranges).
-- Enable [Dependabot](https://docs.github.com/en/code-security/dependabot) or
-  [Renovate](https://docs.renovatebot.com/) for automated dependency updates.
-- Sign your commits with a GPG key (`git commit -S`).
-- Add a `verification` step to CI that checks checksums of third‑party
-  dependencies before deployment.
+| **3** | Hardened build platform and prevention of tampering | Hermetic builds, no network access during build, and two-person review for IaC PRs |
+| **4** | Build is fully hermetic and dependencies are verified | Pin dependency hashes, sign container images with cosign, and enforce `verify` during Lambda layer deployment |
 
 ### Protecting the API and data
 
@@ -290,7 +357,7 @@ what was reviewed and no one tampered with it along the way.
 > **Good habit**: always write a “Threat modeling” section in your design documentation. What would happen if someone sends 10,000 requests per second? What if a Lambda can read S3 objects from another tenant? Document the mitigations and keep them updated.
 ---
 
-## 5. Domains — Financial Fan-Out Example
+## 6. Domains — Financial Fan-Out Example
 
 This repository includes a **domain-based monorepo** under [`domains/`](./domains/)
 that implements the **EventBridge + SQS fan-out pattern** for financial
