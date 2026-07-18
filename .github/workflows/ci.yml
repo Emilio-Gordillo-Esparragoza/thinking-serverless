@@ -33,11 +33,11 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Run Lambda unit tests
         run: |
-          pytest domains/fanoutEx/finance_orchestration/src/process_transaction/test_lambda.py -v
-          pytest domains/fanoutEx/finance_compliance/src/compliance_check/test_lambda.py -v
-          pytest domains/fanoutEx/finance_fraud/src/fraud_detection/test_lambda.py -v
-          pytest domains/fanoutEx/finance_ledger/src/ledger_update/test_lambda.py -v
-          pytest domains/fanoutEx/finance_monolith/src/new_order/test_lambda.py -v
+          pytest domains/finance_orchestration/src/process_transaction/test_lambda.py -v
+          pytest domains/finance_compliance/src/compliance_check/test_lambda.py -v
+          pytest domains/finance_fraud/src/fraud_detection/test_lambda.py -v
+          pytest domains/finance_ledger/src/ledger_update/test_lambda.py -v
+          pytest domains/finance_monolith/src/new_order/test_lambda.py -v
 
   terraform-validate:
     runs-on: ubuntu-latest
@@ -48,7 +48,8 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
       - name: Validate all Terraform modules
         run: |
-          for dir in domains/fanoutEx/*/infrastructure/terraform/; do
+          for dir in domains/*/infrastructure/terraform/ examples/*/infrastructure/terraform/; do
+            [ -d "$dir" ] || continue
             echo "Validating $dir"
             cd "$dir"
             terraform init -backend=false
@@ -71,7 +72,8 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Validate all SAM templates
         run: |
-          for file in domains/fanoutEx/*/infrastructure/sam/template.yaml; do
+          for file in domains/*/infrastructure/sam/template.yaml examples/*/infrastructure/sam/template.yaml; do
+            [ -f "$file" ] || continue
             echo "Validating $file"
             sam validate -t "$file"
           done

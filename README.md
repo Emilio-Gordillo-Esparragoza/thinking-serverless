@@ -359,21 +359,24 @@ SLSA (Supply-chain Levels for Software Artifacts, pronounced *salsa*) is a secur
 
 ## 6. Domains — Financial Fan-Out Example
 
-This repository includes a **domain-based monorepo** under [`domains/`](./domains/)
-that implements the **EventBridge + SQS fan-out pattern** for financial
+This repository separates reusable **domain modules** under [`domains/`](./domains/)
+from **example composition roots** under [`examples/`](./examples/). The first
+example implements the **EventBridge + SQS fan-out pattern** for financial
 transactions.
 
-- [`domains/finance-orchestration/`](./domains/finance-orchestration/) – entry
+- [`domains/finance_orchestration/`](./domains/finance_orchestration/) – entry
   point Lambda + EventBridge bus and rules.
-- [`domains/finance-compliance/`](./domains/finance-compliance/) – AML
+- [`domains/finance_compliance/`](./domains/finance_compliance/) – AML
   screening consumer.
-- [`domains/finance-fraud/`](./domains/finance-fraud/) – fraud scoring
+- [`domains/finance_fraud/`](./domains/finance_fraud/) – fraud scoring
   consumer.
-- [`domains/finance-ledger/`](./domains/finance-ledger/) – double-entry
+- [`domains/finance_ledger/`](./domains/finance_ledger/) – double-entry
   ledger consumer.
+- [`domains/finance_monolith/`](./domains/finance_monolith/) – synchronous
+  comparison stack (deploy separately).
 - [`shared/`](./shared/) – reusable IAM policies, event schemas, and Python
   utilities.
 
-See [`domains/README.md`](./domains/README.md) for full architecture diagrams,
-deployment instructions, and a comparison of synchronous vs asynchronous
-fan-out.
+See [`examples/fanout/README.md`](./examples/fanout/README.md) for full
+architecture diagrams, one-command deployment instructions, and a comparison
+of synchronous vs asynchronous fan-out.

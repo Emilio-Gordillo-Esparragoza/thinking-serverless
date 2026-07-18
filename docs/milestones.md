@@ -51,14 +51,14 @@ A structured roadmap for building a production-ready serverless learning platfor
 - [ ] Document deployment procedures (Terraform & SAM)
 
 ### Deliverables
-- **Example 1: `domains/01_eventbridge_fanout_financial/`**
-  - `finance_orchestration/` – Entry point Lambda, EventBridge rules
-  - `finance_compliance/` – AML screening consumer
-  - `finance_fraud/` – Fraud detection consumer
-  - `finance_ledger/` – Ledger update consumer
-  - `finance_monolith/` – Synchronous comparison (same logic, single Lambda)
-  - `infrastructure/terraform/` – Multi-stage deployment
-  - `infrastructure/sam/` – CloudFormation alternative
+- **Example 1: `examples/fanout/`** (domains under `domains/finance_*`)
+  - `domains/finance_orchestration/` – Entry point Lambda, EventBridge rules
+  - `domains/finance_compliance/` – AML screening consumer
+  - `domains/finance_fraud/` – Fraud detection consumer
+  - `domains/finance_ledger/` – Ledger update consumer
+  - `domains/finance_monolith/` – Synchronous comparison (deploy separately)
+  - `examples/fanout/infrastructure/terraform/` – Composition root (one apply)
+  - `examples/fanout/infrastructure/sam/` – Parent nested-stack template
   - `src/*/test_lambda.py` – Unit and integration tests
 
 - **Documentation**

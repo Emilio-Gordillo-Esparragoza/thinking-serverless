@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Fan-out example composition root. Deploys the four EventBridge + SQS
+  finance domains as nested stacks and auto-wires queue ARNs into
+  orchestration. The monolith is intentionally omitted — deploy
+  domains/finance_monolith separately for the synchronous comparison.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  FinanceCompliance:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ../../../../domains/finance_compliance/infrastructure/sam/template.yaml
+      Parameters:
+        Environment: !Ref Environment
+
+  FinanceFraud:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ../../../../domains/finance_fraud/infrastructure/sam/template.yaml
+      Parameters:
+        Environment: !Ref Environment
+
+  FinanceLedger:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ../../../../domains/finance_ledger/infrastructure/sam/template.yaml
+      Parameters:
+        Environment: !Ref Environment
+
+  FinanceOrchestration:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ../../../../domains/finance_orchestration/infrastructure/sam/template.yaml
+      Parameters:
+        Environment: !Ref Environment
+        ComplianceQueueArn: !GetAtt FinanceCompliance.Outputs.ComplianceQueueArn
+        FraudQueueArn: !GetAtt FinanceFraud.Outputs.FraudQueueArn
+        LedgerQueueArn: !GetAtt FinanceLedger.Outputs.LedgerQueueArn
+
+Outputs:
+  EventBusName:
+    Value: !GetAtt FinanceOrchestration.Outputs.EventBusName
+  EventBusArn:
+    Value: !GetAtt FinanceOrchestration.Outputs.EventBusArn
+  ComplianceQueueArn:
+    Value: !GetAtt FinanceCompliance.Outputs.ComplianceQueueArn
+  FraudQueueArn:
+    Value: !GetAtt FinanceFraud.Outputs.FraudQueueArn
+  LedgerQueueArn:
+    Value: !GetAtt FinanceLedger.Outputs.LedgerQueueArn
